@@ -25,21 +25,24 @@ jobs:
     - name: Checkout this repo
       uses: actions/checkout@v4
 
-    - name: Install tools
-      run: sudo apt-get update && sudo apt-get install -y jq
-
     - name: Get latest tag from source repo
       id: get_tag
       run: |
-        TAG=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/tags | jq -r '.[0].name')
+        TAGS=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/tags)
+        TAG=$(echo $TAGS | jq -r '.[0].name')
+        COMMIT_URL=$(echo $TAGS | jq -r '.[0].commit.url')
+        TAG_DATA=$(curl -s $COMMIT_URL)
+        COMMIT_DATE=$(echo "$TAG_DATA" | jq -r '.commit.committer.date')
         echo "Latest tag: $TAG"
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "commit_date=$COMMIT_DATE" >> "$GITHUB_OUTPUT"
 
     - name: Check if tag is valid (starts with v4, old enough, and image missing)
       id: check_tag
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         TAG: ${{ steps.get_tag.outputs.tag }}
+        COMMIT_DATE: ${{ steps.get_tag.outputs.commit_date }}
       run: |
         set -e
 
@@ -52,11 +55,6 @@ jobs:
         echo "Image for $TAG does not exist. Checking age..."
 
         # Get commit date for tag
-        REF_DATA=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/git/refs/tags/$TAG)
-        SHA=$(echo "$REF_DATA" | jq -r '.object.sha')
-
-        COMMIT_DATA=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/commits/$SHA)
-        COMMIT_DATE=$(echo "$COMMIT_DATA" | jq -r '.commit.committer.date')
 
         COMMIT_TS=$(date -d "$COMMIT_DATE" +%s)
         NOW_TS=$(date +%s)
