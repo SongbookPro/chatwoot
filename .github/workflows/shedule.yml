@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read
+      packages: write
 
     strategy:
       matrix:
@@ -39,6 +39,13 @@ jobs:
 
     # - name: Check if image already exists
       # run: |
+    
+    - uses: tyriis/docker-image-tag-exists@v2.1.0
+      id: existing_image
+      with:
+        registry: ghcr.io
+        repository: ${{ env.IMAGE_NAME }}
+        tag: ${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
 
     - name: Check if a new build is required
       id: check_tag
@@ -48,6 +55,8 @@ jobs:
         COMMIT_DATE: ${{ steps.get_tag.outputs.commit_date }}
       run: |
         set -e
+
+        echo ${{ steps.existing_image.outputs.tag }}
 
         if [[ "$TAG" != v4* ]]; then
           echo "Tag $TAG does not start with v4. Skipping."
