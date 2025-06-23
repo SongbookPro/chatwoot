@@ -56,9 +56,8 @@ jobs:
       run: |
         set -e
 
-
         if [[ "${{ steps.existing_image.outputs.tag }}" == "found" ]]; then
-          echo ${{ steps.existing_image.outputs.tag }}
+          echo "Image already exists. Skipping."
           echo "should_build=false" >> "$GITHUB_OUTPUT"
           exit 0
         fi
@@ -76,10 +75,10 @@ jobs:
 
         echo "Tag is $AGE_DAYS days old"
 
-        if [ "$AGE_DAYS" -gt 3 ]; then
+        if [ "$AGE_DAYS" -gt 5 ]; then
           echo "should_build=true" >> "$GITHUB_OUTPUT"
         else
-          echo "Tag $TAG is too recent (< 6 days)"
+          echo "Tag $TAG is too recent (< 5 days)"
           echo "should_build=false" >> "$GITHUB_OUTPUT"
         fi
 
