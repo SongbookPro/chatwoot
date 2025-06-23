@@ -19,7 +19,7 @@ jobs:
 
     strategy:
       matrix:
-        dockerfile: ['Community', 'Enterprise']
+        dockerfile: ['community', 'enterprise']
 
     steps:
     - name: Checkout this repo
