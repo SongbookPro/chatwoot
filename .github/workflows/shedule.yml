@@ -105,4 +105,4 @@ jobs:
         file: Dockerfile.${{ matrix.dockerfile }}
         platforms: linux/amd64
         push: true
-        tags: ghcr.io/${{ github.repository }}:${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
+        tags: ghcr.io/jon-salmon/chatwoot:${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
