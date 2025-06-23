@@ -28,10 +28,10 @@ jobs:
     - name: Get latest tag from source repo
       id: get_tag
       run: |
-        TAGS=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/tags --header 'Bearer ${{ secrets.GITHUB_TOKEN }}')
+        TAGS=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/tags --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}')
         TAG=$(echo $TAGS | jq -r '.[0].name')
         COMMIT_URL=$(echo $TAGS | jq -r '.[0].commit.url')
-        TAG_DATA=$(curl -s $COMMIT_URL --header 'Bearer ${{ secrets.GITHUB_TOKEN }}')
+        TAG_DATA=$(curl -s $COMMIT_URL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}')
         COMMIT_DATE=$(echo "$TAG_DATA" | jq -r '.commit.committer.date')
         echo "Latest tag: $TAG"
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -54,7 +54,7 @@ jobs:
           exit 0
         fi
 
-        EXISTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://ghcr.io/v2/${{ env.IMAGE_NAME }}/manifests/${{ steps.get_tag.outputs.tag }})
+        EXISTS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://ghcr.io/v2/${{ env.IMAGE_NAME }}/manifests/${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }})
         echo "Exists: $EXISTS"
 
         # if echo "$EXISTS" | grep -q "errors"; then
