@@ -1,0 +1,109 @@
+name: Build image on schedule
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:
+
+env:
+  SOURCE_REPO: chatwoot/chatwoot
+  IMAGE_NAME: jon-salmon/chatwoot
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        dockerfile: ['community', 'enterprise']
+
+    steps:
+    - name: Checkout this repo
+      uses: actions/checkout@v4
+
+    - name: Get latest tag from source repo
+      id: get_tag
+      run: |
+        TAGS=$(curl -s https://api.github.com/repos/${{ env.SOURCE_REPO }}/tags --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}')
+        TAG=$(echo $TAGS | jq -r '.[0].name')
+        COMMIT_URL=$(echo $TAGS | jq -r '.[0].commit.url')
+        TAG_DATA=$(curl -s $COMMIT_URL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}')
+        COMMIT_DATE=$(echo "$TAG_DATA" | jq -r '.commit.committer.date')
+        echo "Latest tag: $TAG"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "commit_date=$COMMIT_DATE" >> "$GITHUB_OUTPUT"
+
+    # - name: Check if image already exists
+      # run: |
+    
+    - uses: tyriis/docker-image-tag-exists@v2.1.0
+      id: existing_image
+      with:
+        registry: ghcr.io
+        repository: ${{ env.IMAGE_NAME }}
+        tag: ${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
+
+    - name: Check if a new build is required
+      id: check_tag
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ steps.get_tag.outputs.tag }}
+        COMMIT_DATE: ${{ steps.get_tag.outputs.commit_date }}
+      run: |
+        set -e
+
+        if [[ "${{ steps.existing_image.outputs.tag }}" == "found" ]]; then
+          echo "Image already exists. Skipping."
+          echo "should_build=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [[ "$TAG" != v4* ]]; then
+          echo "Tag $TAG does not start with v4. Skipping."
+          echo "should_build=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        # Check commit date for tag
+        COMMIT_TS=$(date -d "$COMMIT_DATE" +%s)
+        NOW_TS=$(date +%s)
+        AGE_DAYS=$(( (NOW_TS - COMMIT_TS) / 86400 ))
+
+        echo "Tag is $AGE_DAYS days old"
+
+        if [ "$AGE_DAYS" -gt 5 ]; then
+          echo "should_build=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "Tag $TAG is too recent (< 5 days)"
+          echo "should_build=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      if: steps.check_tag.outputs.should_build == 'true'
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      if: steps.check_tag.outputs.should_build == 'true'
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      if: steps.check_tag.outputs.should_build == 'true'
+
+    - name: Build and Publish
+      uses: docker/build-push-action@v5
+      if: steps.check_tag.outputs.should_build == 'true'
+      with:
+        file: Dockerfile.${{ matrix.dockerfile }}
+        platforms: linux/amd64
+        push: true
+        tags: |
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
+          ghcr.io/${{ env.IMAGE_NAME }}:${{ matrix.dockerfile }}-latest
