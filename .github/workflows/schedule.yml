@@ -7,7 +7,7 @@ on:
 
 env:
   SOURCE_REPO: chatwoot/chatwoot
-  IMAGE_NAME: jon-salmon/chatwoot
+  IMAGE_NAME: songbookpro/chatwoot
 
 jobs:
   build:
