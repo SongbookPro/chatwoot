@@ -36,15 +36,13 @@ jobs:
         echo "tag=$TAG" >> "$GITHUB_OUTPUT"
         echo "commit_date=$COMMIT_DATE" >> "$GITHUB_OUTPUT"
 
-    # - name: Check if image already exists
-      # run: |
-    
-    - uses: tyriis/docker-image-tag-exists@v2.1.0
+    - name: Check if image already exists
+      uses: tyriis/docker-image-tag-exists@v2.1.0
       id: existing_image
       with:
         registry: ghcr.io
-        repository: ${{ env.IMAGE_NAME }}
-        tag: ${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
+        repository: ${{ env.IMAGE_NAME }}-${{ matrix.dockerfile }}
+        tag: ${{ steps.get_tag.outputs.tag }}
 
     - name: Check if a new build is required
       id: check_tag
@@ -105,5 +103,5 @@ jobs:
         platforms: linux/amd64
         push: true
         tags: |
-          ghcr.io/${{ env.IMAGE_NAME }}:${{ matrix.dockerfile }}-${{ steps.get_tag.outputs.tag }}
-          ghcr.io/${{ env.IMAGE_NAME }}:${{ matrix.dockerfile }}-latest
+          ghcr.io/${{ env.IMAGE_NAME }}-${{ matrix.dockerfile }}:${{ steps.get_tag.outputs.tag }}
+          ghcr.io/${{ env.IMAGE_NAME }}-${{ matrix.dockerfile }}:latest
